@@ -1,0 +1,55 @@
+/* score.css — the page of music itself.
+   The staff sits on cream paper, not on the dark chrome: black notes on cream is what a
+   reader's eye is trained on, and it is what makes a red note jump out. */
+
+.paper {
+  background: #fbf7ee;
+  border: 1px solid #ddd3bf;
+  border-radius: 4px;
+  padding: 10px 6px;
+  overflow-x: auto;
+}
+/* height:auto matters — with a fixed height attribute and max-width, the browser
+   letterboxes the drawing inside a page-tall box instead of scaling it. */
+.paper svg { display: block; max-width: 100%; height: auto; }
+
+.staffline { stroke: #15120c; stroke-width: 1.1; }
+.barline   { stroke: #15120c; stroke-width: 1.4; }
+.barline.thick { stroke-width: 2.2; }
+.brace     { fill: #15120c; }
+.ledger    { stroke: #15120c; stroke-width: 1.3; }
+.stem      { stroke: #15120c; stroke-width: 1.5; }
+.beam, .flag, .rest, .dot { fill: #15120c; }
+.tie { fill: none; stroke: #15120c; stroke-width: 1.5; }
+
+/* A note held over by a tie is already sounding: you do not play it again, so it is drawn
+   lighter to say so. */
+.head.held .notehead { fill: #6b6353; }
+.head.held .notehead.hollow { fill: #fbf7ee; stroke: #6b6353; }
+.glyph     { fill: #15120c; }
+.timesig   { fill: #15120c; font-family: "IBM Plex Sans", system-ui, sans-serif; font-weight: 600; }
+
+.notehead        { fill: #15120c; stroke: none; }
+.notehead.hollow { fill: #fbf7ee; stroke: #15120c; stroke-width: 1.6; }
+
+/* A note you did not play stays red for the rest of the session. */
+.head.wrong .notehead        { fill: #c22f28; }
+.head.wrong .notehead.hollow { fill: #fbf7ee; stroke: #c22f28; }
+.head.wrong .ledger          { stroke: #c22f28; }
+.head.wrong .glyph           { fill: #c22f28; }
+
+.head.done .notehead        { fill: #2f7a3c; }
+.head.done .notehead.hollow { fill: #fbf7ee; stroke: #2f7a3c; }
+.head.done .ledger          { stroke: #2f7a3c; }
+.head.done .glyph           { fill: #2f7a3c; }
+
+/* What you played instead, at the pitch you actually hit. */
+.head.ghost .notehead { fill: none; stroke: #9a9284; stroke-width: 1.4; stroke-dasharray: 2.5 2; }
+.head.ghost .ledger   { stroke: #9a9284; }
+.head.ghost .glyph    { fill: #9a9284; }
+
+.cursor { fill: #c9a15a; opacity: .17; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .cursor { transition: x .12s ease, width .12s ease, y .12s ease; }
+}

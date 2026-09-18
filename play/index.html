@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sight reading</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@600&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="score.css">
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <h1>Sight reading</h1>
+    <div class="grow"></div>
+    <div class="status"><span class="dot" id="dot"></span><span id="statusText">Starting&hellip;</span></div>
+    <select id="device" class="hide" style="width:auto"></select>
+  </div>
+
+  <!-- ------------------------------------------------------------- setup -->
+  <section id="setup">
+    <h2>Mode</h2>
+    <div class="modes" style="margin-bottom:24px">
+      <button class="mode" data-mode="practice" aria-pressed="true">
+        <span class="mt">Practice</span>
+        <span class="md">Your own speed, no clock. A wrong note is marked red and it moves on
+          anyway. Play the whole thing, then look at the damage.</span>
+      </button>
+      <button class="mode" data-mode="strict-note" aria-pressed="false">
+        <span class="mt">Strict &mdash; by note</span>
+        <span class="md">It will not move on until you play the chord right. Stay on it until
+          you get it.</span>
+      </button>
+      <button class="mode" data-mode="strict-measure" aria-pressed="false">
+        <span class="mt">Strict &mdash; by measure</span>
+        <span class="md">One wrong note and you go back to the first beat of that measure.
+          The brutal one.</span>
+      </button>
+      <button class="mode" data-mode="timed" aria-pressed="false">
+        <span class="mt">Timed</span>
+        <span class="md">A metronome ticks and the cursor moves on the beat whether you kept up
+          or not. Closest to real sight reading.</span>
+      </button>
+    </div>
+
+    <h2>What to read</h2>
+    <div class="modes" style="margin-bottom:24px">
+      <button class="mode" data-source="generated" aria-pressed="true">
+        <span class="mt">Generated exercises</span>
+        <span class="md">Endless material at a difficulty you set. Never runs out and never
+          gets memorised.</span>
+      </button>
+      <button class="mode" data-source="imported" aria-pressed="false">
+        <span class="mt">A piece of your own</span>
+        <span class="md">Real repertoire, fully scored &mdash; wrong notes go red, strict mode
+          works, the lot. Needs MusicXML, because a PDF is only a picture.</span>
+      </button>
+    </div>
+
+    <section id="library" class="hide" style="margin-bottom:24px">
+      <div class="panel">
+        <div class="row" style="margin-bottom:12px">
+          <label class="filebtn">
+            <input type="file" id="file" accept=".xml,.musicxml,.mxl" multiple hidden>
+            <span>Add a piece&hellip;</span>
+          </label>
+          <span class="dim small">MusicXML &mdash; <code>.musicxml</code>, <code>.mxl</code>
+            or <code>.xml</code></span>
+        </div>
+        <div id="pieces"></div>
+        <p id="importError" class="prompt bad"></p>
+        <div class="grid" id="pieceRange" style="margin-top:14px"></div>
+      </div>
+      <div class="note-box">
+        <b>Only a PDF of the piece?</b> A PDF is a picture of music: nothing in it says which
+        notes are which, so nothing could be marked right or wrong. Convert it first with
+        <b>Audiveris</b>, which is free, runs on your own machine and writes MusicXML. Open the
+        PDF in it, let it read the page, fix anything it got wrong, and export. MuseScore is
+        also free and exports MusicXML from anything you can open or enter in it.
+      </div>
+    </section>
+
+    <h2 id="difficultyHeading">Difficulty</h2>
+    <div class="panel" id="difficulty" style="margin-bottom:20px">
+      <div class="grid" id="settings"></div>
+    </div>
+
+    <div class="row">
+      <button class="primary" id="start">Start</button>
+      <button id="again">New exercise, same settings</button>
+      <label class="row small dim" style="gap:6px;margin-left:8px">
+        <input type="checkbox" id="sound"> Play the notes back through the computer
+      </label>
+    </div>
+
+    <div class="note-box">
+      <b>Two things this cannot do, so you know where you stand.</b>
+      It judges by which key you press, so it cannot tell F&#9839; from G&#9837; &mdash; they are
+      the same key, and if the music says G&#9837; and you think &ldquo;F&#9839;&rdquo;, it will
+      say correct. And the right notes in the wrong octave count as wrong, though the review
+      says so in those words rather than leaving you to work it out.
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------- playing -->
+  <section id="playing" class="hide">
+    <div class="hud">
+      <div class="item"><span id="hKeyLabel">Key</span><b id="hKey">&mdash;</b></div>
+      <div class="item">Measure<b id="hMeasure">&mdash;</b></div>
+      <div class="item">Accuracy<b id="hAcc">&mdash;</b></div>
+      <div class="item">Streak<b id="hStreak">0</b></div>
+      <div class="item" id="tempoBox" style="display:none">Tempo<b id="hTempo">&mdash;</b></div>
+      <div class="grow"></div>
+      <div class="row">
+        <button id="stop">Give up</button>
+      </div>
+    </div>
+
+    <div class="paper"><svg id="score"></svg></div>
+    <p class="prompt" id="prompt"></p>
+    <div class="held" id="heldKeys"></div>
+  </section>
+
+  <!-- ------------------------------------------------------------- review -->
+  <section id="review" class="hide">
+    <h2>How it went</h2>
+    <div class="stats" id="stats"></div>
+
+    <div class="paper" style="margin-bottom:20px"><svg id="reviewScore"></svg></div>
+
+    <div class="row" style="margin-bottom:24px">
+      <button class="primary" id="rAgain">Run it again</button>
+      <button id="rNew">A new exercise</button>
+      <button id="rMisses">Practise the misses</button>
+      <button id="rBack">Change the settings</button>
+    </div>
+
+    <h2>Every miss, in order</h2>
+    <div class="panel">
+      <table class="misses">
+        <thead><tr><th>Where</th><th>On the page</th><th>You played</th><th></th></tr></thead>
+        <tbody id="missList"></tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+
+<script src="music.js"></script>
+<script src="musicxml.js"></script>
+<script src="render.js"></script>
+<script src="generate.js"></script>
+<script src="midi.js"></script>
+<script src="judge.js"></script>
+<script src="sound.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

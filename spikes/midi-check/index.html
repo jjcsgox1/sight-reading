@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MIDI check</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@600&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#101319; --panel:#171b23; --panel-hi:#1e242e; --line:#2b323e;
+  --ink:#e7ebf2; --dim:#8b95a4; --brass:#c9a15a; --brass-soft:#8a6f3d;
+  --good:#6fbf73; --bad:#d8615c;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --cond:"IBM Plex Sans Condensed","IBM Plex Sans",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);
+  font-family:var(--sans);font-size:15px;line-height:1.6}
+.wrap{max-width:680px;margin:0 auto;padding:38px 18px 80px}
+h1{font-family:var(--cond);font-weight:600;font-size:28px;margin:0 0 6px;
+  letter-spacing:.02em;color:var(--brass)}
+.tag{color:var(--dim);font-size:14px;margin:0 0 30px;max-width:56ch}
+h2{font-family:var(--cond);font-weight:600;text-transform:uppercase;
+  letter-spacing:.1em;font-size:12px;color:var(--dim);
+  margin:28px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:14px 16px}
+.verdict{font-family:var(--cond);font-size:19px;letter-spacing:.01em}
+.verdict.ok{color:var(--good)} .verdict.no{color:var(--bad)} .verdict.wait{color:var(--brass)}
+.note{color:var(--dim);font-size:13.5px;margin:6px 0 0}
+.mono{font-family:var(--mono)}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th{text-align:left;font-weight:500;color:var(--dim);font-size:11px;
+  text-transform:uppercase;letter-spacing:.08em;padding:0 10px 6px 0;border-bottom:1px solid var(--line)}
+td{padding:6px 10px 6px 0;border-bottom:1px solid var(--line);font-family:var(--mono)}
+tr:last-child td{border-bottom:none}
+.big{font-family:var(--cond);font-size:56px;line-height:1.1;color:var(--brass);margin:0}
+.held{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;min-height:28px}
+.key{font-family:var(--mono);font-size:12px;background:var(--panel-hi);
+  border:1px solid var(--brass-soft);color:var(--brass);border-radius:3px;padding:2px 7px}
+button{font-family:var(--sans);font-size:14px;color:var(--ink);background:var(--panel-hi);
+  border:1px solid var(--line);border-radius:4px;padding:8px 14px;cursor:pointer}
+button:hover{border-color:var(--brass-soft)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.stat{display:flex;gap:26px;flex-wrap:wrap;margin-top:4px}
+.stat div{font-size:13px;color:var(--dim)}
+.stat b{display:block;font-family:var(--mono);font-size:17px;color:var(--ink);font-weight:500}
+footer{margin-top:34px;color:var(--dim);font-size:13px}
+a{color:var(--brass)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>MIDI check</h1>
+  <p class="tag">Before any of the sight reading game gets built: does this browser, opened this
+    way, actually see your piano? Play some keys and find out.</p>
+
+  <div class="panel">
+    <div id="verdict" class="verdict wait">Asking the browser for MIDI access&hellip;</div>
+    <p id="verdictNote" class="note"></p>
+  </div>
+
+  <h2>How this page was opened</h2>
+  <div class="panel">
+    <div class="mono" id="origin" style="font-size:13px;word-break:break-all"></div>
+    <p class="note" id="originNote"></p>
+  </div>
+
+  <h2>Devices the browser can see</h2>
+  <div class="panel">
+    <div id="devices" class="note">&mdash;</div>
+    <div class="row" style="margin-top:12px">
+      <button id="rescan">Look again</button>
+    </div>
+  </div>
+
+  <h2>Last key played</h2>
+  <div class="panel">
+    <p class="big" id="lastNote">&mdash;</p>
+    <div class="stat">
+      <div>MIDI number<b id="lastNum">&mdash;</b></div>
+      <div>Velocity<b id="lastVel">&mdash;</b></div>
+      <div>Keys seen<b id="count">0</b></div>
+      <div>Time from message to screen<b id="lag">&mdash;</b></div>
+    </div>
+    <div class="held" id="held"></div>
+  </div>
+
+  <h2>Everything played, newest first</h2>
+  <div class="panel">
+    <table>
+      <thead><tr><th>Note</th><th>MIDI</th><th>Vel</th><th>Ch</th><th>Held for</th></tr></thead>
+      <tbody id="log"><tr><td colspan="5" style="font-family:var(--sans);color:var(--dim)">Nothing yet.</td></tr></tbody>
+    </table>
+  </div>
+
+  <footer>
+    Play the bottom key of the piano and the top one: they should read <span class="mono">A0</span>
+    and <span class="mono">C8</span>. Then unplug the keyboard and plug it back in &mdash; the device
+    list above should notice on its own.
+  </footer>
+</div>
+
+<script>
+const NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+function noteName(n){ return NAMES[n % 12] + (Math.floor(n / 12) - 1); }
+
+const $ = id => document.getElementById(id);
+let access = null, count = 0, lags = [], where = "unknown";
+const held = new Map();        // midi number -> {t, name}
+const rows = [];
+
+// --- where are we running from -------------------------------------------------
+(function describeOrigin(){
+  const p = location.protocol;
+  $("origin").textContent = location.href;
+  let msg;
+  if (p === "file:") {
+    where = "file";
+    msg = "Opened straight off the disk. Chrome usually counts this as a secure context, but if " +
+          "MIDI is refused below, that is why — use the hosted copy, or start.cmd, instead.";
+  } else if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
+    where = "localhost";
+    msg = "Served from localhost. This is always a secure context; MIDI should be allowed.";
+  } else if (p === "https:") {
+    where = "https";
+    msg = "Served over HTTPS. This is a secure context; MIDI should be allowed.";
+  } else {
+    where = "http";
+    msg = "Served over plain HTTP from somewhere that is not localhost. Web MIDI is blocked here " +
+          "no matter what the keyboard does.";
+  }
+  $("originNote").textContent = msg;
+})();
+
+// --- verdict -------------------------------------------------------------------
+function verdict(state, text, note){
+  const v = $("verdict");
+  v.className = "verdict " + state;
+  v.textContent = text;
+  $("verdictNote").textContent = note || "";
+}
+
+// --- devices -------------------------------------------------------------------
+function listDevices(){
+  if (!access) return;
+  const ins = [...access.inputs.values()];
+  const outs = [...access.outputs.values()];
+  const el = $("devices");
+  if (!ins.length) {
+    el.innerHTML = "<b style='color:var(--bad)'>No MIDI inputs.</b> The browser has permission but " +
+      "sees no keyboard. Check the USB cable, and that nothing else (a DAW, another browser tab) " +
+      "has hold of the device." +
+      (outs.length ? "<br>There are " + outs.length + " output(s), so the driver is at least alive." : "");
+    return;
+  }
+  el.innerHTML = ins.map(i =>
+    "<div style='color:var(--ink);font-family:var(--mono);font-size:13px;margin-bottom:4px'>" +
+    "&#9679; " + escapeHtml(i.name || "(unnamed)") +
+    "<span style='color:var(--dim)'> — " + escapeHtml(i.manufacturer || "unknown maker") +
+    ", " + i.state + "/" + i.connection + "</span></div>"
+  ).join("");
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+// --- incoming notes ------------------------------------------------------------
+function onMessage(ev){
+  const shown = performance.now();
+  const [status, d1, d2] = ev.data;
+  const type = status & 0xf0, chan = (status & 0x0f) + 1;
+  const isOn  = type === 0x90 && d2 > 0;
+  const isOff = type === 0x80 || (type === 0x90 && d2 === 0);
+  if (!isOn && !isOff) return;
+
+  const name = noteName(d1);
+  if (isOn) {
+    count++;
+    held.set(d1, { t: ev.timeStamp, name });
+    const lag = shown - ev.timeStamp;
+    if (lag >= 0 && lag < 500) { lags.push(lag); if (lags.length > 40) lags.shift(); }
+
+    $("lastNote").textContent = name;
+    $("lastNum").textContent = d1;
+    $("lastVel").textContent = d2;
+    $("count").textContent = count;
+    if (lags.length) {
+      const avg = lags.reduce((a,b) => a+b, 0) / lags.length;
+      $("lag").textContent = avg.toFixed(1) + " ms";
+    }
+    rows.unshift({ name, num: d1, vel: d2, chan, on: ev.timeStamp, dur: null });
+    if (rows.length > 24) rows.pop();
+  } else {
+    const h = held.get(d1);
+    held.delete(d1);
+    if (h) {
+      const r = rows.find(r => r.num === d1 && r.dur === null);
+      if (r) r.dur = ev.timeStamp - h.t;
+    }
+  }
+  drawHeld();
+  drawLog();
+}
+
+function drawHeld(){
+  const el = $("held");
+  const ns = [...held.keys()].sort((a,b) => a-b);
+  el.innerHTML = ns.map(n => "<span class='key'>" + noteName(n) + "</span>").join("");
+}
+
+function drawLog(){
+  $("log").innerHTML = rows.map(r =>
+    "<tr><td style='color:var(--brass)'>" + r.name + "</td><td>" + r.num + "</td><td>" + r.vel +
+    "</td><td>" + r.chan + "</td><td style='color:var(--dim)'>" +
+    (r.dur === null ? "held" : Math.round(r.dur) + " ms") + "</td></tr>"
+  ).join("") || "<tr><td colspan='5' style='font-family:var(--sans);color:var(--dim)'>Nothing yet.</td></tr>";
+}
+
+// --- connect -------------------------------------------------------------------
+function attach(){
+  for (const input of access.inputs.values()) input.onmidimessage = onMessage;
+}
+
+function start(){
+  if (!navigator.requestMIDIAccess) {
+    verdict("no", "This browser has no Web MIDI at all.",
+      "Firefox and Safari do not ship it usable by default. Open this page in Chrome or Edge.");
+    return;
+  }
+  verdict("wait", "Asking for MIDI access…", "Say yes to the permission prompt if one appears.");
+  navigator.requestMIDIAccess({ sysex: false }).then(a => {
+    access = a;
+    a.onstatechange = () => { listDevices(); attach(); settle(); };
+    attach();
+    listDevices();
+    settle();
+  }).catch(err => {
+    const said = "The browser said: " + err.name + " — " + err.message + " ";
+    const secure = where === "localhost" || where === "https";
+    verdict("no", "MIDI access was refused.", said + (
+      secure
+        ? "This page is allowed to ask, so something said no for you: either you dismissed the " +
+          "permission prompt (reload and say Allow), MIDI is blocked for this site in Chrome's " +
+          "site settings, or this is an embedded browser panel rather than real Chrome. Open " +
+          "this same address in Chrome itself."
+      : where === "file"
+        ? "This page was opened straight off the disk, which is the likely cause. Use the hosted " +
+          "copy, or double-click start.cmd in the project folder — both serve it from somewhere " +
+          "the browser will allow MIDI."
+        : "This page came over plain HTTP from somewhere that is not localhost, and browsers " +
+          "block Web MIDI there whatever the keyboard does. It needs HTTPS or localhost."));
+  });
+}
+
+function settle(){
+  if (!access) return;
+  if (access.inputs.size) {
+    verdict("ok", "MIDI is working — " + access.inputs.size +
+      (access.inputs.size === 1 ? " input device." : " input devices."),
+      "Play some keys. Everything below should react instantly.");
+  } else {
+    verdict("no", "Permission granted, but no keyboard is there.",
+      "The browser is allowed to use MIDI, it just cannot see a device. Check the cable and that " +
+      "no other program has the keyboard open, then press “Look again”.");
+  }
+}
+
+$("rescan").onclick = () => { if (access) { listDevices(); attach(); settle(); } else start(); };
+start();
+</script>
+</body>
+</html>

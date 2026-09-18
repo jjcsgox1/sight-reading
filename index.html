@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sight reading</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@600&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#101319; --panel:#171b23; --panel-hi:#1e242e; --line:#2b323e;
+  --ink:#e7ebf2; --dim:#8b95a4; --brass:#c9a15a; --brass-soft:#8a6f3d;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --cond:"IBM Plex Sans Condensed","IBM Plex Sans",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);
+  font-family:var(--sans);font-size:15px;line-height:1.6}
+.wrap{max-width:640px;margin:0 auto;padding:44px 18px 80px}
+h1{font-family:var(--cond);font-weight:600;font-size:30px;margin:0 0 6px;
+  letter-spacing:.02em;color:var(--brass)}
+.tag{color:var(--dim);font-size:14px;margin:0 0 34px;max-width:54ch}
+h2{font-family:var(--cond);font-weight:600;text-transform:uppercase;
+  letter-spacing:.1em;font-size:12px;color:var(--dim);
+  margin:0 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+h2.later{margin-top:34px}
+ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+a.card{display:block;text-decoration:none;color:inherit;
+  background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:14px 16px}
+a.card:hover{border-color:var(--brass-soft);background:var(--panel-hi)}
+a.card:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+.ct{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.ph{font-family:var(--mono);font-size:11px;color:var(--brass-soft);
+  border:1px solid var(--brass-soft);border-radius:2px;padding:1px 5px}
+.cn{font-weight:500;color:var(--brass)}
+.cd{color:var(--dim);font-size:13.5px;margin:5px 0 0}
+footer{margin-top:34px;color:var(--dim);font-size:13px;border-top:1px solid var(--line);padding-top:16px}
+code{font-family:var(--mono);font-size:12.5px;color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Sight reading</h1>
+  <p class="tag">Music appears on a grand staff, you play it on a MIDI keyboard, and it keeps
+    score. A note you get wrong turns red and stays red, so afterwards you can see exactly
+    where you fell down.</p>
+
+  <h2>Play</h2>
+  <ul>
+    <li><a class="card" href="play/">
+      <span class="ct"><span class="ph">app</span><span class="cn">Sight reading</span></span>
+      <p class="cd">Set the difficulty, pick a mode, and read. Chords, or one note at a time
+        &mdash; scales, a melody, broken chords, with leaps and chromatics if you want them
+        hard. Or load a piece of your own as MusicXML and it scores that the same way. Practice
+        mode moves on whatever you play; strict mode will not let you past a chord, or a
+        measure, until you get it right; timed mode puts a metronome behind you.</p>
+    </a></li>
+    <li><a class="card" href="play/?keys=1">
+      <span class="ct"><span class="ph">app</span><span class="cn">&hellip; with no piano attached</span></span>
+      <p class="cd">The same game with the computer&rsquo;s letter keys standing in for a
+        keyboard. For trying it out away from the instrument.</p>
+    </a></li>
+  </ul>
+
+  <h2 class="later">Checks</h2>
+  <ul>
+    <li><a class="card" href="spikes/midi-check/">
+      <span class="ct"><span class="ph">0</span><span class="cn">MIDI check</span></span>
+      <p class="cd">Does this browser see your keyboard, and how fast? Run this first if the
+        game is not hearing you.</p>
+    </a></li>
+    <li><a class="card" href="spikes/render-check/">
+      <span class="ct"><span class="ph">1</span><span class="cn">Render check</span></span>
+      <p class="cd">Hard-coded music holding all the awkward engraving cases side by side:
+        ledger lines, accidentals, stems both ways, seconds, dots, beams. For judging whether
+        the notation looks right.</p>
+    </a></li>
+    <li><a class="card" href="spikes/glyph-check/">
+      <span class="ct"><span class="ph">1</span><span class="cn">Glyph check</span></span>
+      <p class="cd">Which font on this machine draws the clefs and accidentals, and how well.</p>
+    </a></li>
+    <li><a class="card" href="spikes/import-check/sample.musicxml" download>
+      <span class="ct"><span class="ph">2</span><span class="cn">Sample piece</span></span>
+      <p class="cd">A deliberately awkward eight measures &mdash; two hands in different
+        rhythms, a tie across a barline, three kinds of rest, two voices, a clef change. Load it
+        under &ldquo;a piece of your own&rdquo; to see the importer work.</p>
+    </a></li>
+  </ul>
+
+  <footer>Use <b>Chrome or Edge</b>; Firefox needs an add-on for MIDI. Nothing you load or play
+    leaves the machine &mdash; your pieces are kept in the browser, not on a server.
+    <br>Running it from a copy on disk instead? Double-click <code>start.cmd</code> rather than
+    opening the files directly: a browser will only hand out MIDI over HTTPS or from
+    <code>localhost</code>.</footer>
+</div>
+</body>
+</html>

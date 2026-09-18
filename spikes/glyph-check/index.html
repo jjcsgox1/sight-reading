@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Glyph check</title>
+<style>
+body{margin:0;background:#fbf7ee;color:#15120c;font:15px/1.6 system-ui,sans-serif;padding:24px}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:#7a6f5c;margin:28px 0 8px}
+.box{background:#fff;border:1px solid #ddd3bf;padding:16px;margin-bottom:8px}
+.glyphs span{font-size:64px;line-height:1.4;margin-right:18px;display:inline-block}
+.f1{font-family:"Bravura","Bravura Text"}
+.f2{font-family:"Segoe UI Symbol"}
+.f3{font-family:"Segoe UI Historic"}
+.f4{font-family:"Noto Music","Noto Sans Symbols 2"}
+.f5{font-family:serif}
+code{font:12px ui-monospace,Consolas,monospace;color:#7a6f5c}
+</style>
+</head>
+<body>
+<h2>Bravura (only if installed)</h2>
+<div class="box glyphs f1"><span>&#x1D11E;</span><span>&#x1D122;</span><span>&#x266F;</span><span>&#x266D;</span><span>&#x266E;</span><span>&#xE050;</span><span>&#xE062;</span></div>
+<h2>Segoe UI Symbol</h2>
+<div class="box glyphs f2"><span>&#x1D11E;</span><span>&#x1D122;</span><span>&#x266F;</span><span>&#x266D;</span><span>&#x266E;</span></div>
+<h2>Segoe UI Historic</h2>
+<div class="box glyphs f3"><span>&#x1D11E;</span><span>&#x1D122;</span><span>&#x266F;</span><span>&#x266D;</span><span>&#x266E;</span></div>
+<h2>Noto Music</h2>
+<div class="box glyphs f4"><span>&#x1D11E;</span><span>&#x1D122;</span><span>&#x266F;</span><span>&#x266D;</span><span>&#x266E;</span></div>
+<h2>Generic serif</h2>
+<div class="box glyphs f5"><span>&#x1D11E;</span><span>&#x1D122;</span><span>&#x266F;</span><span>&#x266D;</span><span>&#x266E;</span></div>
+<p><code>U+1D11E g clef &middot; U+1D122 f clef &middot; U+266F sharp &middot; U+266D flat &middot; U+266E natural &middot; U+E050/E062 SMuFL clefs</code></p>
+<h2>Which fonts does this machine actually have?</h2>
+<div class="box"><div id="have"></div></div>
+<script>
+const probe = ["Bravura","Bravura Text","Segoe UI Symbol","Segoe UI Historic","Noto Music",
+               "Noto Sans Symbols 2","Musica","Maestro","Opus","Petaluma"];
+const out = [];
+for (const f of probe) {
+  let ok = false;
+  try { ok = document.fonts.check("64px \"" + f + "\""); } catch (e) { ok = false; }
+  out.push((ok ? "&#10003; " : "&#10007; ") + f);
+}
+document.getElementById("have").innerHTML = out.join("<br>");
+</script>
+</body>
+</html>

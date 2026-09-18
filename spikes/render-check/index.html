@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Render check</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@600&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<link rel="stylesheet" href="../../play/score.css">
+<style>
+body{margin:0;background:#101319;color:#e7ebf2;font:15px/1.6 "IBM Plex Sans",system-ui,sans-serif}
+.wrap{max-width:1000px;margin:0 auto;padding:30px 18px 70px}
+h1{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:26px;color:#c9a15a;margin:0 0 4px}
+p.tag{color:#8b95a4;font-size:14px;margin:0 0 26px}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:#8b95a4;
+   margin:26px 0 10px;padding-bottom:6px;border-bottom:1px solid #2b323e}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+button{font:14px "IBM Plex Sans",sans-serif;color:#e7ebf2;background:#1e242e;border:1px solid #2b323e;
+  border-radius:4px;padding:7px 13px;cursor:pointer}
+button:hover{border-color:#8a6f3d}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Render check</h1>
+  <p class="tag">Hard-coded music that deliberately contains the awkward cases: ledger lines both
+    ways, sharps and flats, stems in both directions, noteheads a second apart, dots, beamed
+    eighths, a silent hand, and a key signature with a pile of accidentals.</p>
+
+  <div class="row">
+    <button id="mark">Mark some notes wrong</button>
+    <button id="ghosts">Add ghost notes</button>
+    <button id="clear">Clear marks</button>
+    <button id="cursor">Move the cursor</button>
+  </div>
+
+  <h2>Four sharps, mixed rhythms, both hands</h2>
+  <div class="paper"><svg id="a"></svg></div>
+
+  <h2>Three flats, chords a second apart, ledger lines</h2>
+  <div class="paper"><svg id="b"></svg></div>
+
+  <h2>C major, right hand only, left hand resting</h2>
+  <div class="paper"><svg id="c"></svg></div>
+</div>
+
+<script src="../../play/music.js"></script>
+<script src="../../play/render.js"></script>
+<script>
+// Build a note from a name like "F#4" or "Bb3" or "C5".
+const LET = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
+function N(s) {
+  const m = /^([A-G])(#|b)?(-?\d)$/.exec(s);
+  return { step: LET[m[1]], alter: m[2] === "#" ? 1 : m[2] === "b" ? -1 : 0, octave: +m[3] };
+}
+function ns(str) { return str ? str.split(" ").map(N) : []; }
+
+function build(fifths, timeSig, rows) {
+  const events = [];
+  let i = 0, measure = 1, beat = 1;
+  for (const r of rows) {
+    if (r === "|") { measure++; beat = 1; continue; }
+    events.push({
+      index: i++, measure, beat, beats: r.beats, dotted: !!r.dotted,
+      treble: ns(r.t), bass: ns(r.b)
+    });
+    beat += r.beats;
+  }
+  return finishExercise({ fifths, minor: false, timeSig, events });
+}
+
+const exA = build(4, [4, 4], [
+  { beats: 1, t: "E4 G#4 B4", b: "E2 E3" },
+  { beats: 0.5, t: "F#4 A4 C#5", b: "A2 A3" },
+  { beats: 0.5, t: "G#4 B4 D#5", b: "B2 B3" },
+  { beats: 2, t: "A4 C#5 E5", b: "A2 E3" },
+  "|",
+  { beats: 3, dotted: true, t: "B4 D#5 F#5", b: "B2 F#3" },
+  { beats: 1, t: "A4 C#5 E5", b: "C#3 A3" },
+  "|",
+  { beats: 4, t: "E5 G#5 B5", b: "E2 B2 E3" }
+]);
+
+const exB = build(-3, [4, 4], [
+  { beats: 2, t: "Eb4 F4 Ab4", b: "Eb2 Bb2" },
+  { beats: 1, t: "C5 D5", b: "Ab2 Eb3" },
+  { beats: 1, t: "Bb5 C6", b: "G1 D2" },
+  "|",
+  { beats: 0.5, t: "Ab4 C5", b: "F2" },
+  { beats: 0.5, t: "Bb4 D5", b: "G2" },
+  { beats: 1, t: "C5 Eb5", b: "Ab2" },
+  { beats: 2, t: "Bb4 D5 F5", b: "Bb1 Bb2" },
+  "|",
+  { beats: 4, t: "Eb5 G5 Bb5 Eb6", b: "Eb1 Eb2 Bb2" }
+]);
+
+const exC = build(0, [3, 4], [
+  { beats: 1, t: "C4 E4 G4" },
+  { beats: 1, t: "D4 F4 A4" },
+  { beats: 1, t: "E4 G4 B4" },
+  "|",
+  { beats: 2, t: "F4 A4 C5" },
+  { beats: 1, t: "G4 B4 D5" },
+  "|",
+  { beats: 3, t: "C4 E4 G4 C5" }
+]);
+
+const rs = {};
+const q = new URLSearchParams(location.search);
+function drawAll() {
+  const w = +(q.get("w") || 0) || Math.min(document.querySelector(".wrap").clientWidth - 24, 960);
+  for (const [id, ex] of [["a", exA], ["b", exB], ["c", exC]]) {
+    if (!rs[id]) rs[id] = new StaffRenderer(document.getElementById(id));
+    rs[id].render(ex, w, { space: +(q.get("space") || 15) });
+  }
+}
+// ?raw=1 stops the paper shrinking the drawing to fit, so it can be inspected at full size.
+if (q.get("raw")) {
+  const s = document.createElement("style");
+  s.textContent = ".paper svg{max-width:none}";
+  document.head.appendChild(s);
+}
+drawAll();
+addEventListener("resize", drawAll);
+
+document.getElementById("mark").onclick = () => {
+  rs.a.setHeadState(1, null, "wrong");
+  rs.a.setHeadState(4, 71, "wrong");
+  rs.a.setHeadState(0, null, "done");
+  rs.b.setHeadState(2, null, "wrong");
+  rs.c.setHeadState(3, 65, "wrong");
+};
+document.getElementById("ghosts").onclick = () => {
+  rs.a.addGhost(1, 65, "treble");
+  rs.b.addGhost(2, 45, "bass");
+  rs.c.addGhost(3, 64, "treble");
+};
+document.getElementById("clear").onclick = () => { drawAll(); };
+let ci = 0;
+document.getElementById("cursor").onclick = () => {
+  ci = (ci + 1) % exA.events.length;
+  rs.a.cursorTo(ci);
+};
+</script>
+</body>
+</html>
