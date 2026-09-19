@@ -47,8 +47,23 @@ class NoteSource {
     return true;
   }
 
+  // Web MIDI changed shape early on: `inputs` used to be a function returning an array,
+  // and is a Map now. Chrome gives the Map. The shims that add Web MIDI to browsers
+  // without it — the iPad ones especially — are built on the older spec and give the
+  // other. Accepting both costs nothing here and is the difference between working and
+  // not working there.
   devices() {
-    return this.access ? [...this.access.inputs.values()] : [];
+    const raw = this.access && this.access.inputs;
+    if (!raw) return [];
+    const list =
+      typeof raw === "function" ? [...raw.call(this.access)] :
+      typeof raw.values === "function" ? [...raw.values()] :
+      typeof raw.length === "number" ? [...raw] : [];
+    // Everything below keys off a port id, and the older shims do not give ports one.
+    // A real MIDIInput already has it and its id is read-only, so this only ever fires
+    // on the stand-ins.
+    list.forEach((p, i) => { if (p && !p.id) p.id = "port" + i + "-" + (p.name || "midi"); });
+    return list;
   }
 
   use(id) {
