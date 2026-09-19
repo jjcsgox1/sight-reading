@@ -239,13 +239,22 @@ function wireSource() {
     // An app that adds Web MIDI to a browser lacking it can inject itself late, so a
     // failure here is not always final. Offer another go rather than a dead end.
     $("retry").classList.toggle("hide", st.ok);
+    $("noMidiWhy").textContent = st.ok ? "" : st.text;
+    $("useKeys").classList.toggle("hide", !!QUERY.get("keys"));
     app.sourceReady = st.ok;
     updateStartState();
   };
-  $("retry").onclick = () => {
+  const lookAgain = () => {
     $("statusText").textContent = "Looking again…";
     $("dot").className = "dot warn";
     app.source.start();
+  };
+  $("retry").onclick = lookAgain;
+  $("retry2").onclick = lookAgain;
+  $("useKeys").onclick = () => {
+    const url = new URL(location.href);
+    url.searchParams.set("keys", "1");
+    location.href = url.toString();
   };
   app.source.onNoteOn = (midi, vel, t) => {
     app.tones.note(midi, vel);
@@ -327,12 +336,15 @@ function currentPiece() {
   return app.library.find(p => p.id === app.pieceId) || null;
 }
 
-// There is nothing to start if the keyboard is not there, or if a piece was asked for and
-// none is chosen. Say so with the button rather than by quietly playing something else.
+// Only one thing genuinely stops an exercise being started: asking for a piece and not
+// choosing one. A missing keyboard must NOT block it — you should still be able to put
+// music on the screen and look at it, and locking the app because no MIDI was found
+// leaves no way to see whether anything else works at all.
 function updateStartState() {
-  const off = !app.sourceReady || (app.reading === "imported" && !currentPiece());
+  const off = app.reading === "imported" && !currentPiece();
   $("start").disabled = off;
   $("again").disabled = off;
+  $("noMidi").classList.toggle("hide", app.sourceReady !== false);
 }
 
 function drawLibrary() {
