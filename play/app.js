@@ -236,8 +236,16 @@ function wireSource() {
     } else {
       sel.classList.add("hide");
     }
+    // An app that adds Web MIDI to a browser lacking it can inject itself late, so a
+    // failure here is not always final. Offer another go rather than a dead end.
+    $("retry").classList.toggle("hide", st.ok);
     app.sourceReady = st.ok;
     updateStartState();
+  };
+  $("retry").onclick = () => {
+    $("statusText").textContent = "Looking again…";
+    $("dot").className = "dot warn";
+    app.source.start();
   };
   app.source.onNoteOn = (midi, vel, t) => {
     app.tones.note(midi, vel);

@@ -19,6 +19,20 @@ function noMidiHere() {
   return "This browser has no Web MIDI. Use Chrome or Edge on a computer.";
 }
 
+// Keep checking until it is true, or the time is up. Returns whether it came true.
+function waitFor(test, timeoutMs, stepMs) {
+  return new Promise(resolve => {
+    if (test()) return resolve(true);
+    const step = stepMs || 120;
+    let waited = 0;
+    const timer = setInterval(() => {
+      if (test()) { clearInterval(timer); return resolve(true); }
+      waited += step;
+      if (waited >= timeoutMs) { clearInterval(timer); resolve(false); }
+    }, step);
+  });
+}
+
 class NoteSource {
   constructor() {
     this.onNoteOn = () => {};
@@ -30,7 +44,10 @@ class NoteSource {
   }
 
   async start() {
-    if (!navigator.requestMIDIAccess) {
+    // Do not decide there is no Web MIDI the instant the page loads. The apps that add
+    // it to browsers lacking it inject their code into the page, and that can land after
+    // this script has already run — so asking once, immediately, is asking too early.
+    if (!(await waitFor(() => !!navigator.requestMIDIAccess, 4000))) {
       this.onStatus({ ok: false, reason: "no-api", text: noMidiHere() });
       return false;
     }
@@ -41,9 +58,18 @@ class NoteSource {
         text: "The browser refused MIDI access (" + err.name + ").", err });
       return false;
     }
-    this.access.onstatechange = () => { this.attach(); this.report(); };
+    try { this.access.onstatechange = () => { this.attach(); this.report(); }; } catch (e) {}
     this.attach();
     this.report();
+
+    // Same again for the keyboard itself: a shim may hand back access before it has
+    // finished asking the system what is plugged in, and may never fire onstatechange
+    // to tell us later.
+    if (!this.devices().length) {
+      await waitFor(() => this.devices().length > 0, 4000);
+      this.attach();
+      this.report();
+    }
     return true;
   }
 

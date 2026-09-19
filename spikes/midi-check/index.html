@@ -86,6 +86,15 @@ a{color:var(--brass)}
     <div class="held" id="held"></div>
   </div>
 
+  <h2>What this browser looks like</h2>
+  <div class="panel">
+    <p class="note" style="margin-top:0">If MIDI is not working, read this out and it will say
+      why. It updates as things change.</p>
+    <pre id="diag" class="mono" style="font-size:12px;white-space:pre-wrap;word-break:break-word;
+      margin:0;color:var(--ink)"></pre>
+    <div class="row" style="margin-top:12px"><button id="recheck">Check again</button></div>
+  </div>
+
   <h2>Everything played, newest first</h2>
   <div class="panel">
     <table>
@@ -142,10 +151,38 @@ function verdict(state, text, note){
 }
 
 // --- devices -------------------------------------------------------------------
+
+// Web MIDI changed shape early on. Chrome gives a Map; the shims that add Web MIDI to
+// browsers lacking it are built on the older spec and give a function or an array.
+function portsOf(which){
+  const raw = access && access[which];
+  if (!raw) return [];
+  const list =
+    typeof raw === "function" ? [...raw.call(access)] :
+    typeof raw.values === "function" ? [...raw.values()] :
+    typeof raw.length === "number" ? [...raw] : [];
+  list.forEach((p, i) => { if (p && !p.id) p.id = "port" + i + "-" + (p.name || "midi"); });
+  return list;
+}
+function inputsOf(){ return portsOf("inputs"); }
+
+// Keep checking until it is true, or the time is up.
+function waitFor(test, timeoutMs){
+  return new Promise(resolve => {
+    if (test()) return resolve(true);
+    let waited = 0;
+    const t = setInterval(() => {
+      if (test()) { clearInterval(t); return resolve(true); }
+      waited += 120;
+      if (waited >= timeoutMs) { clearInterval(t); resolve(false); }
+    }, 120);
+  });
+}
+
 function listDevices(){
   if (!access) return;
-  const ins = [...access.inputs.values()];
-  const outs = [...access.outputs.values()];
+  const ins = inputsOf();
+  const outs = portsOf("outputs");
   const el = $("devices");
   if (!ins.length) {
     el.innerHTML = "<b style='color:var(--bad)'>No MIDI inputs.</b> The browser has permission but " +
@@ -158,7 +195,7 @@ function listDevices(){
     "<div style='color:var(--ink);font-family:var(--mono);font-size:13px;margin-bottom:4px'>" +
     "&#9679; " + escapeHtml(i.name || "(unnamed)") +
     "<span style='color:var(--dim)'> — " + escapeHtml(i.manufacturer || "unknown maker") +
-    ", " + i.state + "/" + i.connection + "</span></div>"
+    (i.state ? ", " + i.state + "/" + i.connection : "") + "</span></div>"
   ).join("");
 }
 function escapeHtml(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
@@ -216,11 +253,53 @@ function drawLog(){
 }
 
 // --- connect -------------------------------------------------------------------
+let attached = [];
 function attach(){
-  for (const input of access.inputs.values()) input.onmidimessage = onMessage;
+  attached = [];
+  for (const input of inputsOf()) {
+    try { input.onmidimessage = onMessage; attached.push(input.name || input.id); } catch (e) {}
+  }
 }
 
-function start(){
+// --- what is actually here ----------------------------------------------------
+function shapeOf(v){
+  if (v === undefined) return "missing";
+  if (v === null) return "null";
+  if (typeof v === "function") return "function (the old spec)";
+  if (typeof v.values === "function" && typeof v.size === "number") return "Map of " + v.size + " (current spec)";
+  if (typeof v.length === "number") return "array of " + v.length + " (the old spec)";
+  return typeof v;
+}
+
+function diagnose(){
+  const L = [];
+  L.push("address      " + location.href);
+  L.push("secure       " + (window.isSecureContext ? "yes" : "NO — MIDI is blocked without this"));
+  L.push("requestMIDIAccess " + (navigator.requestMIDIAccess ? "present" : "MISSING"));
+  L.push("access       " + (access ? "granted" : "not granted"));
+  if (access) {
+    L.push("inputs       " + shapeOf(access.inputs));
+    L.push("outputs      " + shapeOf(access.outputs));
+    L.push("onstatechange " + ("onstatechange" in access ? "supported" : "not supported"));
+    const ins = inputsOf();
+    L.push("devices      " + (ins.length ? ins.map(i => (i.name || "(unnamed)")).join(", ") : "none"));
+    L.push("listening to " + (attached.length ? attached.join(", ") : "nothing"));
+  }
+  L.push("keys seen    " + count);
+  L.push("browser      " + navigator.userAgent);
+  $("diag").textContent = L.join("\n");
+}
+
+async function start(){
+  diagnose();
+  // Do not decide there is no Web MIDI the instant the page loads. An app that adds it to
+  // a browser lacking it injects its code into the page, and that can land after this
+  // script has already run — so asking once, immediately, is asking too early.
+  if (!navigator.requestMIDIAccess) {
+    verdict("wait", "Looking for Web MIDI…", "Some browsers add it a moment after the page loads.");
+    await waitFor(() => !!navigator.requestMIDIAccess, 4000);
+    diagnose();
+  }
   if (!navigator.requestMIDIAccess) {
     const apple = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
                   (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -234,12 +313,20 @@ function start(){
     return;
   }
   verdict("wait", "Asking for MIDI access…", "Say yes to the permission prompt if one appears.");
-  navigator.requestMIDIAccess({ sysex: false }).then(a => {
+  navigator.requestMIDIAccess({ sysex: false }).then(async a => {
     access = a;
-    a.onstatechange = () => { listDevices(); attach(); settle(); };
+    try { a.onstatechange = () => { listDevices(); attach(); settle(); }; } catch (e) {}
     attach();
     listDevices();
     settle();
+    // A shim can hand back access before it has finished asking the system what is
+    // plugged in, and may never fire onstatechange to say so later.
+    if (!inputsOf().length) {
+      await waitFor(() => inputsOf().length > 0, 5000);
+      attach();
+      listDevices();
+      settle();
+    }
   }).catch(err => {
     const said = "The browser said: " + err.name + " — " + err.message + " ";
     const secure = where === "localhost" || where === "https";
@@ -260,18 +347,21 @@ function start(){
 
 function settle(){
   if (!access) return;
-  if (access.inputs.size) {
-    verdict("ok", "MIDI is working — " + access.inputs.size +
-      (access.inputs.size === 1 ? " input device." : " input devices."),
+  const n = inputsOf().length;
+  if (n) {
+    verdict("ok", "MIDI is working — " + n + (n === 1 ? " input device." : " input devices."),
       "Play some keys. Everything below should react instantly.");
   } else {
     verdict("no", "Permission granted, but no keyboard is there.",
       "The browser is allowed to use MIDI, it just cannot see a device. Check the cable and that " +
       "no other program has the keyboard open, then press “Look again”.");
   }
+  diagnose();
 }
 
 $("rescan").onclick = () => { if (access) { listDevices(); attach(); settle(); } else start(); };
+$("recheck").onclick = () => { if (access) { listDevices(); attach(); settle(); } else start(); };
+setInterval(diagnose, 1000);
 start();
 </script>
 </body>
