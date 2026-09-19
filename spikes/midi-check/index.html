@@ -222,8 +222,15 @@ function attach(){
 
 function start(){
   if (!navigator.requestMIDIAccess) {
-    verdict("no", "This browser has no Web MIDI at all.",
-      "Firefox and Safari do not ship it usable by default. Open this page in Chrome or Edge.");
+    const apple = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    verdict("no", "This browser has no Web MIDI at all.", apple
+      ? "This is an iPad or iPhone, and no browser on it can help: Apple requires them all to " +
+        "use Safari's engine, and Safari has never supported Web MIDI — it was declined in 2020 " +
+        "over fingerprinting, because MIDI devices report identifying serial numbers. Desktop " +
+        "Safari is the same. Use a computer with Chrome or Edge."
+      : "Firefox needs a permission add-on for it and Safari does not have it. Open this page " +
+        "in Chrome or Edge.");
     return;
   }
   verdict("wait", "Asking for MIDI access…", "Say yes to the permission prompt if one appears.");

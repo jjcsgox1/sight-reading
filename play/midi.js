@@ -3,6 +3,22 @@
 // Normally a keyboard over USB. There is also a computer-keyboard stand-in, switched on
 // with ?keys=1, so the game can be tried, and tested, with no piano plugged in.
 
+// An iPad or iPhone, including iPadOS pretending to be a Mac. Worth knowing, because the
+// advice there is different from anywhere else: no browser on the device can help.
+function isApplePortable() {
+  if (/iPad|iPhone|iPod/.test(navigator.userAgent)) return true;
+  return navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+}
+
+function noMidiHere() {
+  if (isApplePortable())
+    return "iPads and iPhones have no Web MIDI in any browser — Apple requires them all to " +
+           "use Safari's engine, and Safari has never supported it. This needs a computer.";
+  if (/Firefox/.test(navigator.userAgent))
+    return "Firefox needs its Web MIDI permission add-on. Chrome or Edge is simpler.";
+  return "This browser has no Web MIDI. Use Chrome or Edge on a computer.";
+}
+
 class NoteSource {
   constructor() {
     this.onNoteOn = () => {};
@@ -15,8 +31,7 @@ class NoteSource {
 
   async start() {
     if (!navigator.requestMIDIAccess) {
-      this.onStatus({ ok: false, reason: "no-api",
-        text: "This browser has no Web MIDI. Use Chrome or Edge." });
+      this.onStatus({ ok: false, reason: "no-api", text: noMidiHere() });
       return false;
     }
     try {

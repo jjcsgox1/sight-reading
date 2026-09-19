@@ -9,7 +9,14 @@ is marked up like a teacher marked it.
 **<https://jjcsgox1.github.io/sight-reading/>** — open it, plug the keyboard in, play. Nothing
 needs installing and nothing needs starting.
 
-Use **Chrome or Edge**; Firefox needs an add-on for Web MIDI. Everything happens in the browser:
+Use **Chrome or Edge, on a computer**. Firefox needs a permission add-on for Web MIDI.
+
+**Not an iPad or an iPhone.** Safari has never supported Web MIDI — Apple declined it in 2020
+because MIDI devices report identifying serial numbers — and Apple requires every browser on iOS
+and iPadOS to use Safari's engine, so Chrome and Firefox there have the same gap. The page will
+load and the notes will draw; it simply cannot hear a keyboard. Desktop Safari is no different.
+
+Everything happens in the browser:
 no notes, no recordings and no imported pieces ever leave the machine. Your library is kept in
 the browser's own storage, which means it is per-machine and per-browser — pieces loaded on the
 laptop will not appear on another computer.
