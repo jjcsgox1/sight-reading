@@ -24,8 +24,7 @@ const MIN_PAD = 2.5;    // least room above and below a system, even with no led
 
 const BRACE_W = 2.4;
 const CLEF_W = 3.6;
-const KEYSIG_W = 1.15;  // per accidental
-const TIME_W = 3.0;
+const TIME_W = 3.0;     // room for the time signature, plus the gap before the first bar
 const HEAD_RX = 0.68, HEAD_RY = 0.5;
 
 // Bottom staff line of each clef, and which diatonic value sits on it.
@@ -192,9 +191,18 @@ class StaffRenderer {
     return totalH;
   }
 
+  // How much room one key-signature accidental needs, measured rather than assumed. A
+  // fixed figure per accidental is what let seven sharps run into the time signature:
+  // the glyph is as wide as the font draws it, not as wide as a constant says.
+  keySigStep(fifths, S) {
+    if (!fifths) return 0;
+    const spec = ACCIDENTAL[fifths > 0 ? "1" : "-1"];
+    return glyphWidth(spec.ch, spec.h, S) + 0.24 * S;
+  }
+
   headerWidth(ex, S) {
-    const n = Math.abs(ex.fifths);
-    return (BRACE_W + CLEF_W + n * KEYSIG_W + TIME_W + 1.2) * S;
+    const keySig = Math.abs(ex.fifths) * this.keySigStep(ex.fifths, S);
+    return (BRACE_W + 1.1 + CLEF_W) * S + keySig + TIME_W * S;
   }
 
   // The moments in a measure where something is struck, and how much room each gets.
@@ -301,6 +309,7 @@ class StaffRenderer {
   drawKeySignature(g, x, trebleTop, bassTop, S, clefs) {
     const ex = this.exercise;
     if (!ex.fifths) return x;
+    const step = this.keySigStep(ex.fifths, S);
     for (const [staff, yTop] of [["treble", trebleTop], ["bass", bassTop]]) {
       const clef = (clefs && clefs[staff]) || staff;
       const sig = keySignature(ex.fifths, clef);
@@ -308,10 +317,10 @@ class StaffRenderer {
       for (const a of sig) {
         const spec = ACCIDENTAL[String(a.alter)];
         if (spec) glyph(g, spec.ch, cx, this.noteY(a.diatonic, clef, yTop, S), spec.h, spec.anchor, S, "glyph");
-        cx += KEYSIG_W * S;
+        cx += step;
       }
     }
-    return x + Math.abs(ex.fifths) * KEYSIG_W * S;
+    return x + Math.abs(ex.fifths) * step;
   }
 
   drawTimeSignature(g, x, trebleTop, bassTop, S, timeSig) {
@@ -319,7 +328,7 @@ class StaffRenderer {
     for (const yTop of [trebleTop, bassTop]) {
       for (const [val, cy] of [[n, yTop + S], [d, yTop + 3 * S]]) {
         const t = el("text", {
-          x: x + 0.9 * S, y: cy, class: "timesig", "text-anchor": "middle",
+          x: x + 1.05 * S, y: cy, class: "timesig", "text-anchor": "middle",
           "dominant-baseline": "central", "font-size": 2.4 * S
         }, g);
         t.textContent = val;
