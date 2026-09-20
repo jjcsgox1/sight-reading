@@ -12,8 +12,9 @@ function isApplePortable() {
 
 function noMidiHere() {
   if (isApplePortable())
-    return "iPads and iPhones have no Web MIDI in any browser — Apple requires them all to " +
-           "use Safari's engine, and Safari has never supported it. This needs a computer.";
+    return "Safari has no Web MIDI, and Apple makes every browser on an iPad use Safari's " +
+           "engine — so Chrome and Firefox here cannot help either. The free MIDIWeb Browser " +
+           "app is the way round it: open this same address inside that.";
   if (/Firefox/.test(navigator.userAgent))
     return "Firefox needs its Web MIDI permission add-on. Chrome or Edge is simpler.";
   return "This browser has no Web MIDI. Use Chrome or Edge on a computer.";

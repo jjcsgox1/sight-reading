@@ -304,10 +304,11 @@ async function start(){
     const apple = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
                   (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
     verdict("no", "This browser has no Web MIDI at all.", apple
-      ? "This is an iPad or iPhone, and no browser on it can help: Apple requires them all to " +
-        "use Safari's engine, and Safari has never supported Web MIDI — it was declined in 2020 " +
-        "over fingerprinting, because MIDI devices report identifying serial numbers. Desktop " +
-        "Safari is the same. Use a computer with Chrome or Edge."
+      ? "Safari has never supported Web MIDI — declined in 2020 over fingerprinting, because " +
+        "MIDI devices report identifying serial numbers — and Apple requires every browser on " +
+        "an iPad to use Safari's engine, so Chrome and Firefox here have the same gap. The way " +
+        "round it is the free MIDIWeb Browser app, which brings its own MIDI plumbing: open " +
+        "this same address inside that and it works."
       : "Firefox needs a permission add-on for it and Safari does not have it. Open this page " +
         "in Chrome or Edge.");
     return;
