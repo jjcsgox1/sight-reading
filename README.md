@@ -106,7 +106,7 @@ Set by **What to play**. Three of them are chords, three are one note at a time.
 
 | | |
 |---|---|
-| **Chords — diatonic triads** | Blocked chords from a real progression, voiced with sane voice leading. |
+| **Chords — diatonic triads** | Blocked chords from a real progression, voiced with sane voice leading. The left hand takes the root and the fifth, so it reads as a part of its own rather than doubling what the right hand is already playing. |
 | **Chords — add sevenths** | The same, with four-note chords. |
 | **Chords — free intervals** | Two or three notes of the key a readable interval apart, not a chord. |
 | **Single notes — scales** | Up to the top of the range, turn, back down. Even note values. |
@@ -124,11 +124,16 @@ that, so the line has to actually be read.
 *mostly steps* is easy on the eye; *leaps* uses thirds to sixths and turns without warning;
 *wide leaps* goes up to an octave a jump and cannot be guessed at all.
 
-**Between the hands** (when both hands are playing) decides what the left hand does:
-*in octaves* is the same line twice, at a fixed displacement held for the whole line, the way
-scales are practised; *contrary motion* mirrors it, so one hand goes up as the other goes down;
-*two independent lines* gives each hand its own tune, and nothing in the left follows from the
-right. That last one is the hardest and the closest to real music.
+**Between the hands** (when both hands are playing) decides what the left hand does, and
+defaults to giving it something of its own:
+
+- *Two separate lines* (the default) — each hand gets its own tune and nothing in the left
+  follows from the right. Scales run a third apart and turn around at different points, so two
+  scales are two different lines rather than the same one twice. Hardest, and closest to real
+  music.
+- *Contrary motion* — the left hand mirrors the right: one goes up as the other comes down.
+- *In octaves* — the same line in both hands, at a displacement fixed for the whole line. This
+  is how scales are drilled, but both hands are then playing the same notes.
 
 **Accidentals** set to *chromatic* puts notes from outside the key into the line — sharpened
 going up, flattened coming down — and turns the scales style into chromatic scales, where there
@@ -182,10 +187,18 @@ Plain HTML, CSS and JavaScript. No build step, no npm, no libraries, nothing fet
 Every page loads only files sitting next to it.
 
 The notation is drawn as SVG shapes — staff lines, noteheads, stems, beams, ledger lines, the
-brace. The five things that cannot sensibly be drawn from ellipses and rectangles (the two clefs
-and the three accidentals) are set as text in whatever music font the system has; on Windows that
-is Segoe UI Symbol, which draws them properly. Each glyph is measured and mapped onto the staff,
-so it lands in the right place whichever font ends up drawing it.
+brace. The things that cannot sensibly be drawn from ellipses and rectangles (the clefs, the
+accidentals, the shorter rests) are set as text in whatever music font the system has; on Windows
+that is Segoe UI Symbol, which draws them properly.
+
+Those glyphs are measured with the canvas `measureText` ink extents, not with SVG's `getBBox`.
+`getBBox` on a `<text>` reports the *layout* box, which is the same height for every character in
+the font because it is the line box rather than the shape — position a sharp by it and the sharp
+lands wherever the font's line spacing happens to fall. The ink metrics give the real outline, so
+each glyph can be placed by the part of it that matters: a sharp and a natural on their middle, a
+flat by the centre of its bowl, a bass clef by its dot, a treble clef by its curl. Accidentals in
+a chord are then stacked leftward into columns wide enough for the widest glyph in each, sharing
+a column only when far enough apart vertically not to touch.
 
 Every notehead is its own SVG group carrying its chord index and MIDI number, which is what makes
 turning one red a single attribute change rather than a redraw.

@@ -38,12 +38,12 @@ const FIELDS = [
       wide: "Up to an octave a jump. Nothing can be guessed."
     } },
   { key: "bothHands", label: "Between the hands", options: [
-    ["octaves", "In octaves"], ["contrary", "Contrary motion"],
-    ["independent", "Two independent lines"]],
+    ["independent", "Two separate lines"], ["contrary", "Contrary motion"],
+    ["octaves", "In octaves"]],
     hint: {
-      octaves: "The same line in both hands.",
+      independent: "A different line in each hand. Nothing in the left follows from the right.",
       contrary: "The left hand mirrors the right: one goes up, the other down.",
-      independent: "Two separate lines. Nothing in the left hand follows from the right."
+      octaves: "The same line in both hands, an octave or two apart — the way scales are drilled."
     } },
   { key: "accidentals", label: "Accidentals", options: [
     ["key", "Key signature only"], ["some", "Occasional accidentals"],
@@ -66,7 +66,7 @@ const SAVED_KEY = "sr.settings";
 function loadSettings() {
   const base = {
     keyMode: "two", minorToo: true, range: "ledger1", hands: "both", notesPerHand: 3,
-    chordStyle: "triads", accidentals: "key", motion: "mixed", bothHands: "octaves",
+    chordStyle: "triads", accidentals: "key", motion: "mixed", bothHands: "independent",
     rhythm: "quarters", timeSigName: "4/4", measures: 8, tempo: 60
   };
   try {

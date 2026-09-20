@@ -33,6 +33,12 @@ button:hover{border-color:#8a6f3d}
     <button id="cursor">Move the cursor</button>
   </div>
 
+  <h2>Accidental alignment &mdash; one on every line and space</h2>
+  <p class="tag" style="margin:-4px 0 10px">Every accidental should sit centred on its own
+    notehead: a sharp and a natural on their middle, a flat with the note in the middle of its
+    bowl. If any of them drift up or down as the notes climb, the placement is wrong.</p>
+  <div class="paper"><svg id="d"></svg></div>
+
   <h2>Four sharps, mixed rhythms, both hands</h2>
   <div class="paper"><svg id="a"></svg></div>
 
@@ -104,11 +110,43 @@ const exC = build(0, [3, 4], [
   { beats: 3, t: "C4 E4 G4 C5" }
 ]);
 
+// A note on every step of both staves, each carrying an accidental, so any drift shows up
+// as the line climbs. Built directly rather than through the generator, and the
+// accidentals are forced on rather than worked out from a key signature.
+function alignmentTest() {
+  const events = [];
+  let i = 0, measure = 1, beat = 1;
+  const alters = [1, -1, 0];
+  for (let d = 28; d <= 40; d++) {          // C4 up to A5 in the treble
+    const alter = alters[i % 3];
+    const t = { step: ((d % 7) + 7) % 7, octave: Math.floor(d / 7), alter };
+    const bd = d - 14;                       // the same run two octaves down
+    const b = { step: ((bd % 7) + 7) % 7, octave: Math.floor(bd / 7), alter };
+    if (beat > 4) { measure++; beat = 1; }
+    events.push({ index: i++, measure, beat, beats: 1, dotted: false, treble: [t], bass: [b] });
+    beat++;
+  }
+  while (events.length % 4) {
+    const last = events[events.length - 1];
+    if (beat > 4) { measure++; beat = 1; }
+    events.push({ index: events.length, measure, beat, beats: 1, dotted: false,
+                  treble: [last.treble[0]], bass: [last.bass[0]] });
+    beat++;
+  }
+  const ex = finishExercise({ fifths: 0, minor: false, timeSig: [4, 4], events });
+  for (const m of ex.measures)
+    for (const k of ["treble", "bass"])
+      for (const g of m.staves[k])
+        for (const n of g.notes) n.showAccidental = n.alter;   // force every one to show
+  return ex;
+}
+const exD = alignmentTest();
+
 const rs = {};
 const q = new URLSearchParams(location.search);
 function drawAll() {
   const w = +(q.get("w") || 0) || Math.min(document.querySelector(".wrap").clientWidth - 24, 960);
-  for (const [id, ex] of [["a", exA], ["b", exB], ["c", exC]]) {
+  for (const [id, ex] of [["d", exD], ["a", exA], ["b", exB], ["c", exC]]) {
     if (!rs[id]) rs[id] = new StaffRenderer(document.getElementById(id));
     rs[id].render(ex, w, { space: +(q.get("space") || 15) });
   }

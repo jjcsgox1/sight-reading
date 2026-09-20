@@ -48,7 +48,7 @@ function makeRng(seed) {
 const DEFAULTS = {
   keyMode: "two", minorToo: true, range: "ledger1", hands: "both",
   notesPerHand: 3, chordStyle: "triads", accidentals: "key",
-  motion: "mixed", bothHands: "octaves",
+  motion: "mixed", bothHands: "independent",
   rhythm: "quarters", measures: 8, timeSig: [4, 4]
 };
 
@@ -104,8 +104,14 @@ function chordVoices(rng, scale, count, s, range, minor) {
                           s.accidentals, degrees[(k + 1) % degrees.length]);
     const treble = s.hands === "left" ? [] :
       voice(chord, range.treble, handSize(s.notesPerHand, "treble"), prevTreble, rng);
+    // The left hand takes the root and the fifth, not the next chord tones up. Walking
+    // the chord from the bottom hands it the root and the third, which is the same
+    // material the right hand is already playing an octave up; an open fifth underneath
+    // is what piano music actually does and reads as a different part.
+    const bassSize = handSize(s.notesPerHand, "bass");
+    const bassChord = bassSize > 1 ? [chord[0], chord[2] || chord[chord.length - 1]] : [chord[0]];
     const bass = separateChord(treble, s.hands === "right" ? [] :
-      voice(chord, range.bass, handSize(s.notesPerHand, "bass"), prevBass, rng, true));
+      voice(bassChord, range.bass, bassSize, prevBass, rng, true));
     if (treble.length) prevTreble = treble;
     if (bass.length) prevBass = bass;
     out.push({ treble, bass });
@@ -141,7 +147,7 @@ function handSize(n, staff) {
 // anyone actually reads is a line, not a stack, and a line is read differently — you
 // follow where it is going rather than decoding a shape.
 
-function makeLine(rng, scale, count, s, range, minor, which) {
+function makeLine(rng, scale, count, s, range, minor, which, offset) {
   const lead = which === "bass" ? range.bass : range.treble;
   const raise = minor && s.accidentals === "some";
   const chromatic = s.accidentals === "chromatic";
@@ -150,7 +156,7 @@ function makeLine(rng, scale, count, s, range, minor, which) {
     // A chromatic scale is a scale — and a far harder one to read, because the eye cannot
     // ride the key signature. It is the obvious thing for "scales" plus "chromatic".
     return chromatic ? chromaticScale(rng, scale, count, lead)
-                     : scaleLine(rng, scale, count, lead, raise);
+                     : scaleLine(rng, scale, count, lead, raise, offset || 0);
   }
   if (s.chordStyle === "arpeggios") return arpeggioLine(rng, scale, count, lead, minor);
   return melodyLine(rng, scale, count, lead, s.motion, chromatic);
@@ -167,7 +173,9 @@ function singleLine(rng, scale, count, s, range, minor) {
   // Two genuinely separate lines, one per hand. Nothing in the left hand can be guessed
   // from the right, which is the hardest of the three and the closest to real music.
   if (s.bothHands === "independent") {
-    const raw = makeLine(rng, scale, count, s, range, minor, "bass");
+    // A third apart, so that two scales are two different lines rather than the same one
+    // twice. The melody and broken-chord styles are already different run to run.
+    const raw = makeLine(rng, scale, count, s, range, minor, "bass", 2);
     const low = dropBelow(raw.map((n, i) => n || raw[raw.length - 1]), line);
     return line.map((n, i) => ({ treble: [n], bass: [low[i]] }));
   }
@@ -248,12 +256,17 @@ function noteInScale(scale, diatonic, raiseSeventh) {
 
 // Up the scale to the top of the range, turn round, back down. The top note is played
 // once on the turn, not twice, which is how a scale is fingered and how it is read.
-function scaleLine(rng, scale, count, range, raise) {
+function scaleLine(rng, scale, count, range, raise, offset) {
   const [lo, hi] = range;
   if (hi - lo < 2) return new Array(count).fill(0).map(() => noteInScale(scale, lo, raise));
   let d = lo;
   while (d <= hi && ((d % 7) + 7) % 7 !== scale[0].step) d++;   // start on the tonic if we can
   if (d > hi) d = lo;
+  // Starting the two hands on different degrees is what makes a scale in one hand and a
+  // scale in the other into two different lines rather than the same one twice.
+  d += offset || 0;
+  while (d > hi) d -= 7;
+  while (d < lo) d += 7;
   let dir = 1;
   const out = [];
   for (let i = 0; i < count; i++) {

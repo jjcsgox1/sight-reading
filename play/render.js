@@ -34,12 +34,16 @@ const CLEF = {
   bass:   { bottomY: 4, bottomDia: 18, midDia: 22, glyph: "\u{1D122}" }   // G2 bottom, D3 middle
 };
 
+// h is the ink height in staff spaces; anchor is how far down the ink the note's own line
+// falls. A sharp and a natural are symmetrical, so they sit on their middle. A flat is
+// not: the note belongs in the middle of its bowl, which is near the bottom, with the
+// stem rising above it.
 const ACCIDENTAL = {
-  "1":  { ch: "♯", h: 2.7, anchor: 0.50 },
-  "-1": { ch: "♭", h: 2.9, anchor: 0.72 },
-  "0":  { ch: "♮", h: 2.7, anchor: 0.50 },
-  "2":  { ch: "\u{1D12A}", h: 1.1, anchor: 0.50 },     // double sharp
-  "-2": { ch: "♭♭", h: 2.9, anchor: 0.72 }   // double flat
+  "1":  { ch: "♯", h: 2.4, anchor: 0.50 },
+  "-1": { ch: "♭", h: 2.6, anchor: 0.76 },
+  "0":  { ch: "♮", h: 2.5, anchor: 0.50 },
+  "2":  { ch: "\u{1D12A}", h: 0.9, anchor: 0.50 },     // double sharp
+  "-2": { ch: "♭♭", h: 2.7, anchor: 0.76 }   // double flat
 };
 
 // hollow noteheads, whether there is a stem, and how many beams or flags hang off it.
@@ -56,11 +60,11 @@ const NOTE_TYPE = {
 // Whole and half rests are drawn as bars hanging from or sitting on a line. The rest are
 // glyphs, sized and placed by eye against the staff.
 const REST_GLYPH = {
-  quarter: { ch: "\u{1D13D}", h: 4.6, anchor: 0.52 },
-  eighth:  { ch: "\u{1D13E}", h: 4.2, anchor: 0.55 },
-  "16th":  { ch: "\u{1D13F}", h: 4.6, anchor: 0.55 },
-  "32nd":  { ch: "\u{1D140}", h: 5.0, anchor: 0.55 },
-  "64th":  { ch: "\u{1D141}", h: 5.2, anchor: 0.55 }
+  quarter: { ch: "\u{1D13D}", h: 2.6, anchor: 0.50 },
+  eighth:  { ch: "\u{1D13E}", h: 2.0, anchor: 0.50 },
+  "16th":  { ch: "\u{1D13F}", h: 2.9, anchor: 0.55 },
+  "32nd":  { ch: "\u{1D140}", h: 3.6, anchor: 0.58 },
+  "64th":  { ch: "\u{1D141}", h: 4.2, anchor: 0.60 }
 };
 
 // ------------------------------------------------------------------ small helpers
@@ -72,20 +76,60 @@ function el(name, attrs, parent) {
   return e;
 }
 
-// Place a text glyph by measuring it and mapping its box onto the staff, so it lands in
-// the right place whichever font ends up drawing it.
+// Measuring a glyph properly.
+//
+// SVG's getBBox on a <text> gives the LAYOUT box — the same height for every character in
+// the font, because it is the line box and not the shape. Positioning a sharp by it puts
+// the sharp wherever the font's line spacing happens to fall, which is why accidentals
+// drifted off their lines. Canvas measureText reports the real ink extents instead, so
+// everything below is placed by the shape actually drawn.
+const MEASURE_PX = 200;
+const inkCache = new Map();
+let inkCtx = null;
+
+function inkOf(ch) {
+  if (inkCache.has(ch)) return inkCache.get(ch);
+  let ink = null;
+  try {
+    if (!inkCtx) inkCtx = document.createElement("canvas").getContext("2d");
+    inkCtx.font = MEASURE_PX + "px " + MUSIC_FONT;
+    const m = inkCtx.measureText(ch);
+    const top = -m.actualBoundingBoxAscent, bottom = m.actualBoundingBoxDescent;
+    const left = -m.actualBoundingBoxLeft, right = m.actualBoundingBoxRight;
+    if (isFinite(top) && isFinite(bottom) && bottom - top > 0)
+      ink = { top, left, height: bottom - top, width: Math.max(1, right - left) };
+  } catch (e) { ink = null; }
+  inkCache.set(ch, ink);
+  return ink;
+}
+
+// Draw a glyph so that its ink is `heightS` staff spaces tall, its left edge at x, and the
+// point `anchorFrac` of the way down it sitting exactly on y.
 function glyph(parent, ch, x, y, heightS, anchorFrac, S, cls) {
-  const t = el("text", {
-    x: 0, y: 0, class: cls, "font-family": MUSIC_FONT, "font-size": 100 * S / 10
-  }, parent);
+  const t = el("text", { x: 0, y: 0, class: cls, "font-family": MUSIC_FONT,
+                         "font-size": MEASURE_PX }, parent);
   t.textContent = ch;
-  const b = t.getBBox();
-  if (!b.height) { t.setAttribute("x", x); t.setAttribute("y", y); return t; }
-  const k = (heightS * S) / b.height;
-  const tx = x - b.x * k;
-  const ty = y - (b.y + b.height * anchorFrac) * k;
+  const ink = inkOf(ch);
+  if (!ink) {   // no canvas metrics: fall back to the old, cruder placement
+    const b = t.getBBox();
+    if (!b.height) { t.setAttribute("x", x); t.setAttribute("y", y); return t; }
+    const k2 = (heightS * S) / b.height;
+    t.setAttribute("transform", "translate(" + (x - b.x * k2) + "," +
+      (y - (b.y + b.height * anchorFrac) * k2) + ") scale(" + k2 + ")");
+    return t;
+  }
+  const k = (heightS * S) / ink.height;
+  const tx = x - ink.left * k;
+  const ty = y - (ink.top + ink.height * anchorFrac) * k;
   t.setAttribute("transform", "translate(" + tx + "," + ty + ") scale(" + k + ")");
   return t;
+}
+
+// How wide a glyph is on the staff, once drawn at that height. Used to stack accidentals.
+function glyphWidth(ch, heightS, S) {
+  const ink = inkOf(ch);
+  if (!ink) return heightS * S * 0.35;
+  return ink.width * ((heightS * S) / ink.height);
 }
 
 function beatsOfType(type, dots) {
@@ -211,7 +255,7 @@ class StaffRenderer {
     el("line", { class: "barline thick", x1: BRACE_W * S, y1: trebleTop, x2: BRACE_W * S, y2: bassTop + 4 * S }, g);
 
     const opening = measures[0].clefs || { treble: "treble", bass: "bass" };
-    let x = BRACE_W * S + 0.9 * S;
+    let x = BRACE_W * S + 1.1 * S;
     this.drawClef(g, opening.treble, x, trebleTop, S, 1);
     this.drawClef(g, opening.bass, x, bassTop, S, 1);
     x += CLEF_W * S;
@@ -236,9 +280,10 @@ class StaffRenderer {
     }
   }
 
+  // The bass clef's dot sits on the F line, the treble clef's curl wraps the G line.
   drawClef(g, clef, x, yTop, S, scale) {
-    if (clef === "bass") glyph(g, CLEF.bass.glyph, x, yTop + 1 * S, 3.2 * scale, 0.33, S, "glyph");
-    else glyph(g, CLEF.treble.glyph, x, yTop + 3 * S, 6.9 * scale, 0.735, S, "glyph");
+    if (clef === "bass") glyph(g, CLEF.bass.glyph, x, yTop + 1 * S, 3.0 * scale, 0.33, S, "glyph");
+    else glyph(g, CLEF.treble.glyph, x, yTop + 3 * S, 6.8 * scale, 0.71, S, "glyph");
   }
 
   drawBrace(g, yTop, yBot, S) {
@@ -376,6 +421,35 @@ class StaffRenderer {
     const stemX = up ? cx + rx : cx - rx;
     let minY = Infinity, maxY = -Infinity;
 
+    // Accidentals stack leftward in columns, nearest note first, and two of them may
+    // share a column only if they are far enough apart vertically not to touch. The old
+    // rule just alternated odd and even, which collided on close chords and pushed
+    // accidentals needlessly far out on wide ones.
+    const acc = [];
+    sorted.forEach((n, i) => {
+      const spec = ACCIDENTAL[String(n.showAccidental)];
+      if (spec) acc.push({ i, spec, y: this.noteY(dias[i], clef, yTop, S) });
+    });
+    acc.sort((a, b) => a.y - b.y);
+    const columns = [];
+    for (const a of acc) {
+      let col = 0;
+      while (columns[col] && columns[col].some(o =>
+        Math.abs(o.y - a.y) < (o.spec.h + a.spec.h) * 0.5 * S * 0.92)) col++;
+      (columns[col] = columns[col] || []).push(a);
+      a.col = col;
+    }
+    // Each column is as wide as its widest accidental, so nothing overlaps sideways, and
+    // the nearest one almost touches the notehead — engraving sets them close, not adrift.
+    const colX = [];
+    let run = cx - rx - 0.22 * S;
+    for (let c = 0; c < columns.length; c++) {
+      run -= Math.max(...columns[c].map(a => glyphWidth(a.spec.ch, a.spec.h, S)));
+      colX[c] = run;
+      run -= 0.16 * S;
+    }
+    const accFor = new Map(acc.map(a => [a.i, a]));
+
     sorted.forEach((n, i) => {
       const y = this.noteY(dias[i], clef, yTop, S);
       const ox = sides[i] * rx * 2;
@@ -392,8 +466,8 @@ class StaffRenderer {
         cx: cx + ox, cy: y, rx, ry, transform: "rotate(-20 " + (cx + ox) + " " + y + ")"
       }, head);
 
-      const spec = ACCIDENTAL[String(n.showAccidental)];
-      if (spec) glyph(head, spec.ch, cx - rx - (1.45 + 0.75 * (i % 2)) * S, y, spec.h, spec.anchor, S, "glyph acc");
+      const a = accFor.get(i);
+      if (a) glyph(head, a.spec.ch, colX[a.col], y, a.spec.h, a.spec.anchor, S, "glyph acc");
 
       const onLine = (dias[i] - c.bottomDia) % 2 === 0;
       this.drawDots(g, grp, cx + rx + 1.05 * S, y - (onLine ? S / 2 : 0), S, head);
